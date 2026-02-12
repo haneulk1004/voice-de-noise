@@ -1,0 +1,40 @@
+{
+  "name": "voice-de-noise",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "main": "electron/main.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "electron:dev": "concurrently -k \"vite\" \"timeout 5 && electron .\"",
+    "dist:exe": "npm run build && electron-builder --win"
+  },
+  "build": {
+    "appId": "com.voice-de-noise.app",
+    "productName": "Voice De-noise",
+    "directories": {
+      "output": "dist-electron"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "public/vite.svg"
+    }
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1",
+    "electron": "^40.4.0",
+    "electron-builder": "^26.7.0",
+    "vite": "^5.0.0",
+    "vite-plugin-pwa": "^1.2.0"
+  },
+  "dependencies": {
+    "@sapphi-red/web-noise-suppressor": "^0.3.5"
+  }
+}
