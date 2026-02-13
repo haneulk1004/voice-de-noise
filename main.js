@@ -12,7 +12,7 @@ app.innerHTML = `
 
   <div class="tabs">
     <button class="tab-btn active" data-tab="tab-main">Home</button>
-    <button class="tab-btn" data-tab="tab-settings">Settings</button>
+    <button class="tab-btn" data-tab="tab-loudness">Loudness</button>
   </div>
 
   <!-- Tab: Main -->
@@ -37,10 +37,7 @@ app.innerHTML = `
 
         <button id="processBtn" class="btn-primary" disabled>Process & Download WAV</button>
       </div>
-  </div>
 
-  <!-- Tab: Settings -->
-  <div id="tab-settings" class="tab-content">
       <div class="card">
         <h3>Audio Settings</h3>
         <div class="controls">
@@ -66,7 +63,15 @@ app.innerHTML = `
             <input type="range" id="nrIntensity" min="0" max="100" value="85" step="1">
             <span id="nrVal">85%</span>
           </div>
+        </div>
+      </div>
+  </div>
 
+  <!-- Tab: Loudness -->
+  <div id="tab-loudness" class="tab-content">
+      <div class="card">
+        <h3>Loudness Normalization</h3>
+        <div class="controls">
           <div class="control-group">
             <label for="targetLufs">Loudness Target</label>
             <select id="targetLufs">
@@ -75,6 +80,7 @@ app.innerHTML = `
                 <option value="-14">Online / Streaming (-14 LUFS)</option>
             </select>
           </div>
+          <small class="hint">Automatically adjusts audio loudness to match industry standards</small>
         </div>
       </div>
   </div>
