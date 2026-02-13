@@ -80,6 +80,14 @@ export async function processFile(file, onProgress, options = {}) {
     const denoisedBuffer = await renderPromise;
     clearInterval(progressInterval);
 
+    // Validate output is not silent
+    const testLoudness = measureLoudness(denoisedBuffer);
+    if (testLoudness < -90) {
+        console.error(`⚠️ Denoise output is silent (${testLoudness.toFixed(2)} LUFS)! Using original audio instead.`);
+        // Fallback: Use original audio if denoise failed
+        return normalizeAndLimit(audioBuffer, targetLufs, onProgress, 50, 100);
+    }
+
     if (onProgress) onProgress(50);
 
     // Proceed to Normalization

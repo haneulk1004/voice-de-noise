@@ -13,19 +13,13 @@ export default defineConfig({
   plugins: [
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['noise-repellent-m.js', 'noise-repellent-m.wasm', 'vite.svg'],
+      includeAssets: ['noise-repellent-m.js', 'noise-repellent-m.wasm'],
       manifest: {
         name: 'Voice De-noise',
         short_name: 'De-noise',
         description: 'Real-time Voice De-noise Web App',
-        theme_color: '#242424',
-        icons: [
-          {
-            src: 'vite.svg',
-            sizes: '192x192',
-            type: 'image/svg+xml'
-          }
-        ]
+        theme_color: '#6366f1',
+        icons: []
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,wasm}']

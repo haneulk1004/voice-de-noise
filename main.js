@@ -32,10 +32,6 @@ app.innerHTML = `
         </div>
         <div id="fileStatus"></div>
 
-        <div class="preview-controls" id="previewContainer">
-            <button id="previewBtn" class="btn-secondary">Preview Result</button>
-        </div>
-
         <button id="processBtn" class="btn-primary" disabled>Process & Download WAV</button>
       </div>
 
@@ -84,10 +80,6 @@ app.innerHTML = `
         </div>
         <div id="loudnessFileStatus"></div>
 
-        <div class="preview-controls" id="loudnessPreviewContainer">
-            <button id="loudnessPreviewBtn" class="btn-secondary">Preview Result</button>
-        </div>
-
         <button id="loudnessProcessBtn" class="btn-primary" disabled>Normalize & Download WAV</button>
       </div>
 
@@ -127,17 +119,12 @@ const fileInput = document.getElementById('fileInput');
 const processBtn = document.getElementById('processBtn');
 const fileStatus = document.getElementById('fileStatus');
 const dropZoneText = document.getElementById('dropZoneText');
-const previewBtn = document.getElementById('previewBtn');
-const previewContainer = document.getElementById('previewContainer');
 const eqGainInput = document.getElementById('eqGain');
 const eqValDisplay = document.getElementById('eqVal');
 
 // State
 let originalFile = null;
 let processedBuffer = null;
-let previewCtx = null;
-let previewSource = null;
-let isPlaying = false;
 
 // UI Helpers
 const setStatus = (msg, type = 'normal') => {
@@ -265,8 +252,6 @@ fileInput.addEventListener('change', (e) => {
 
     // Reset state
     processedBuffer = null;
-    stopPreview();
-    previewContainer.style.display = 'none';
     processBtn.textContent = "Process & Download WAV";
 
     // Reset click handler to initial processing state
@@ -295,13 +280,10 @@ async function handleProcessClick() {
 
     // Success
     setStatus("Complete", "success");
-    fileStatus.textContent = "Processing complete! You can now preview or download.";
+    fileStatus.textContent = "Processing complete! Click to download.";
 
     processBtn.textContent = "Download WAV";
     processBtn.disabled = false;
-
-    // Show Preview
-    previewContainer.style.display = 'flex';
 
     // Switch button to Download Mode
     processBtn.onclick = downloadProcessed;
@@ -340,46 +322,6 @@ function downloadProcessed() {
   }
 }
 
-// Preview Logic
-previewBtn.addEventListener('click', () => {
-  if (isPlaying) {
-    stopPreview();
-  } else {
-    startPreview();
-  }
-});
-
-function startPreview() {
-  if (!processedBuffer) return;
-
-  previewCtx = new (window.AudioContext || window.webkitAudioContext)();
-  previewSource = previewCtx.createBufferSource();
-  previewSource.buffer = processedBuffer;
-  previewSource.connect(previewCtx.destination);
-
-  previewSource.onended = () => {
-    isPlaying = false;
-    previewBtn.textContent = "Preview Result (Play)";
-  };
-
-  previewSource.start();
-  isPlaying = true;
-  previewBtn.textContent = "Stop Preview";
-}
-
-function stopPreview() {
-  if (previewSource) {
-    try { previewSource.stop(); } catch (e) { }
-    previewSource = null;
-  }
-  if (previewCtx) {
-    try { previewCtx.close(); } catch (e) { }
-    previewCtx = null;
-  }
-  isPlaying = false;
-  previewBtn.textContent = "Preview Result (Play)";
-}
-
 // ==========================================
 // LOUDNESS TAB - Independent Processing
 // ==========================================
@@ -390,16 +332,11 @@ const loudnessFileInput = document.getElementById('loudnessFileInput');
 const loudnessProcessBtn = document.getElementById('loudnessProcessBtn');
 const loudnessFileStatus = document.getElementById('loudnessFileStatus');
 const loudnessDropZoneText = document.getElementById('loudnessDropZoneText');
-const loudnessPreviewBtn = document.getElementById('loudnessPreviewBtn');
-const loudnessPreviewContainer = document.getElementById('loudnessPreviewContainer');
 const loudnessDropZone = document.getElementById('loudnessDropZone');
 
 // State for Loudness Tab
 let loudnessOriginalFile = null;
 let loudnessProcessedBuffer = null;
-let loudnessPreviewCtx = null;
-let loudnessPreviewSource = null;
-let loudnessIsPlaying = false;
 
 // UI Helper for Loudness
 const setLoudnessStatus = (msg, type = 'normal') => {
@@ -446,8 +383,6 @@ loudnessFileInput.addEventListener('change', (e) => {
 
     // Reset state
     loudnessProcessedBuffer = null;
-    stopLoudnessPreview();
-    loudnessPreviewContainer.style.display = 'none';
     loudnessProcessBtn.textContent = "Normalize & Download WAV";
     loudnessProcessBtn.onclick = handleLoudnessProcessClick;
   }
@@ -471,13 +406,10 @@ async function handleLoudnessProcessClick() {
 
     // Success
     setLoudnessStatus("Complete", "success");
-    loudnessFileStatus.textContent = "Normalization complete! You can now preview or download.";
+    loudnessFileStatus.textContent = "Normalization complete! Click to download.";
 
     loudnessProcessBtn.textContent = "Download WAV";
     loudnessProcessBtn.disabled = false;
-
-    // Show Preview
-    loudnessPreviewContainer.style.display = 'flex';
 
     // Switch to Download Mode
     loudnessProcessBtn.onclick = downloadLoudnessProcessed;
@@ -508,44 +440,4 @@ function downloadLoudnessProcessed() {
     console.error("Export Error", err);
     loudnessFileStatus.textContent = "Error exporting WAV";
   }
-}
-
-// Preview Logic for Loudness
-loudnessPreviewBtn.addEventListener('click', () => {
-  if (loudnessIsPlaying) {
-    stopLoudnessPreview();
-  } else {
-    startLoudnessPreview();
-  }
-});
-
-function startLoudnessPreview() {
-  if (!loudnessProcessedBuffer) return;
-
-  loudnessPreviewCtx = new (window.AudioContext || window.webkitAudioContext)();
-  loudnessPreviewSource = loudnessPreviewCtx.createBufferSource();
-  loudnessPreviewSource.buffer = loudnessProcessedBuffer;
-  loudnessPreviewSource.connect(loudnessPreviewCtx.destination);
-
-  loudnessPreviewSource.onended = () => {
-    loudnessIsPlaying = false;
-    loudnessPreviewBtn.textContent = "Preview Result";
-  };
-
-  loudnessPreviewSource.start();
-  loudnessIsPlaying = true;
-  loudnessPreviewBtn.textContent = "Stop Preview";
-}
-
-function stopLoudnessPreview() {
-  if (loudnessPreviewSource) {
-    try { loudnessPreviewSource.stop(); } catch (e) { }
-    loudnessPreviewSource = null;
-  }
-  if (loudnessPreviewCtx) {
-    try { loudnessPreviewCtx.close(); } catch (e) { }
-    loudnessPreviewCtx = null;
-  }
-  loudnessIsPlaying = false;
-  loudnessPreviewBtn.textContent = "Preview Result";
 }
