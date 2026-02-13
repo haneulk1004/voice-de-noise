@@ -39,11 +39,11 @@ export function calculateGainNeeded(currentLUFS, targetLUFS) {
     let gainDb = targetLUFS - currentLUFS;
 
     // Safety clamp to prevent extreme adjustments
-    // Positive gain: Be more conservative to prevent clipping (max +15dB)
+    // Positive gain: Allow up to +30dB for very quiet audio (limiter will prevent clipping)
     // Negative gain: Allow more reduction (max -20dB)
-    if (gainDb > 15) {
-        console.warn(`⚠️ Clamping gain from ${gainDb.toFixed(2)}dB to +15dB to prevent clipping`);
-        gainDb = 15;
+    if (gainDb > 30) {
+        console.warn(`⚠️ Clamping gain from ${gainDb.toFixed(2)}dB to +30dB to prevent excessive boost`);
+        gainDb = 30;
     }
     if (gainDb < -20) {
         console.warn(`⚠️ Clamping gain from ${gainDb.toFixed(2)}dB to -20dB`);
