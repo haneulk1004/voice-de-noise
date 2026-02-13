@@ -57,9 +57,26 @@ export async function processFile(file, onProgress, options = {}) {
 
     source.start();
 
-    // Render Denoised Buffer
-    if (onProgress) onProgress(20);
-    const denoisedBuffer = await offlineCtx.startRendering();
+    // Render Denoised Buffer with progress tracking
+    if (onProgress) onProgress(10);
+
+    const renderPromise = offlineCtx.startRendering();
+
+    // Simulate progress during rendering (OfflineAudioContext doesn't provide real-time progress)
+    const duration = audioBuffer.duration;
+    const estimatedTime = duration * 1000; // Rough estimate in ms
+    const startTime = Date.now();
+
+    const progressInterval = setInterval(() => {
+        // Progress from 10% to 45% during rendering
+        const elapsed = Date.now() - startTime;
+        const progress = Math.min(45, 10 + (elapsed / estimatedTime) * 35);
+        if (onProgress) onProgress(Math.floor(progress));
+    }, 100);
+
+    const denoisedBuffer = await renderPromise;
+    clearInterval(progressInterval);
+
     if (onProgress) onProgress(50);
 
     // Proceed to Normalization
@@ -93,10 +110,23 @@ async function normalizeAndLimit(denoisedBuffer, targetLufs, onProgress, startPr
 
     const resultPromise = finalCtx.startRendering();
 
-    // Simulate progress
-    if (onProgress) onProgress(startProgress + (endProgress - startProgress) * 0.5);
+    // Simulate progress during final rendering
+    const finalStartTime = Date.now();
+    const finalDuration = denoisedBuffer.duration;
+    const finalEstimatedTime = finalDuration * 500; // Faster than denoise (no heavy processing)
+
+    const finalProgressInterval = setInterval(() => {
+        const elapsed = Date.now() - finalStartTime;
+        const progress = Math.min(
+            endProgress - 1,
+            startProgress + (elapsed / finalEstimatedTime) * (endProgress - startProgress)
+        );
+        if (onProgress) onProgress(Math.floor(progress));
+    }, 100);
 
     const finalBuffer = await resultPromise;
+    clearInterval(finalProgressInterval);
+
     if (onProgress) onProgress(endProgress);
 
     return finalBuffer;
@@ -175,13 +205,13 @@ async function processFileRealtime(audioBuffer, nrIntensity, eqDb, targetLufs, o
         mediaRecorder.start();
         source.start();
 
-        // Progress Loop
+        // Progress Loop (more frequent updates)
         const duration = audioBuffer.duration;
         const interval = setInterval(() => {
             if (ctx.state === 'closed') { clearInterval(interval); return; }
-            const p = (ctx.currentTime / duration) * 50;
+            const p = Math.floor((ctx.currentTime / duration) * 50);
             if (onProgress) onProgress(Math.min(49, p));
-        }, 500);
+        }, 200); // Update every 200ms for smoother progress
 
         // Stop when source ends
         source.onended = () => {

@@ -46,7 +46,18 @@ app.innerHTML = `
       <div class="card">
         <h3>Audio Settings</h3>
         <div class="controls">
-           <div class="control-group">
+          <div class="control-group">
+            <label for="modePreset">Processing Mode</label>
+            <select id="modePreset">
+                <option value="custom">Custom</option>
+                <option value="dialogue" selected>Dialogue (Recommended)</option>
+                <option value="gentle">Gentle</option>
+                <option value="surgical">Surgical</option>
+            </select>
+            <small style="display: block; margin-top: 0.25rem; color: var(--text-muted);">Dialogue: Optimized for voice | Gentle: Subtle | Surgical: Maximum removal</small>
+          </div>
+
+          <div class="control-group">
             <label for="eqGain">Clarify / Treble (dB)</label>
             <input type="range" id="eqGain" min="0" max="10" value="5" step="0.5">
             <span id="eqVal">5.0</span>
@@ -54,15 +65,15 @@ app.innerHTML = `
 
           <div class="control-group">
             <label for="nrIntensity">Denoise Amount</label>
-            <input type="range" id="nrIntensity" min="0" max="100" value="100" step="1">
-            <span id="nrVal">100%</span>
+            <input type="range" id="nrIntensity" min="0" max="100" value="85" step="1">
+            <span id="nrVal">85%</span>
           </div>
 
           <div class="control-group">
             <label for="targetLufs">Loudness Target</label>
             <select id="targetLufs">
                 <option value="-24">Broadcast (-24 LUFS)</option>
-                <option value="-16">Mobile / Podcast (-16 LUFS)</option>
+                <option value="-16" selected>Mobile / Podcast (-16 LUFS)</option>
                 <option value="-14">Online / Streaming (-14 LUFS)</option>
             </select>
           </div>
@@ -114,14 +125,63 @@ const setStatus = (msg, type = 'normal') => {
 const nrIntensityInput = document.getElementById('nrIntensity');
 const nrValDisplay = document.getElementById('nrVal');
 const targetLufsInput = document.getElementById('targetLufs');
+const modePresetInput = document.getElementById('modePreset');
+
+// Mode Presets
+const presets = {
+  dialogue: {
+    eqGain: 5,
+    nrIntensity: 85,
+    description: 'Optimized for voice clarity with natural sound'
+  },
+  gentle: {
+    eqGain: 2,
+    nrIntensity: 50,
+    description: 'Subtle noise reduction, preserves most original audio'
+  },
+  surgical: {
+    eqGain: 8,
+    nrIntensity: 100,
+    description: 'Maximum noise removal, may affect voice quality'
+  }
+};
+
+// Apply preset
+function applyPreset(presetName) {
+  if (presets[presetName]) {
+    const preset = presets[presetName];
+    eqGainInput.value = preset.eqGain;
+    eqValDisplay.textContent = preset.eqGain.toFixed(1);
+    nrIntensityInput.value = preset.nrIntensity;
+    nrValDisplay.textContent = preset.nrIntensity + '%';
+  }
+}
+
+modePresetInput.addEventListener('change', (e) => {
+  const mode = e.target.value;
+  if (mode !== 'custom') {
+    applyPreset(mode);
+  }
+});
 
 eqGainInput.addEventListener('input', (e) => {
-  eqValDisplay.textContent = e.target.value;
+  eqValDisplay.textContent = parseFloat(e.target.value).toFixed(1);
+  // Switch to custom if user manually adjusts
+  if (modePresetInput.value !== 'custom') {
+    modePresetInput.value = 'custom';
+  }
 });
 
 nrIntensityInput.addEventListener('input', (e) => {
   nrValDisplay.textContent = e.target.value + '%';
+  // Switch to custom if user manually adjusts
+  if (modePresetInput.value !== 'custom') {
+    modePresetInput.value = 'custom';
+  }
 });
+
+// Initialize with dialogue preset
+applyPreset('dialogue');
 
 // Drag and Drop
 const dropZone = document.querySelector('.file-drop-zone');
