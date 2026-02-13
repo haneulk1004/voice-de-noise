@@ -141,21 +141,22 @@ const targetLufsInput = document.getElementById('targetLufs');
 const modePresetInput = document.getElementById('modePreset');
 
 // Mode Presets
+// Note: Intensity now maps to 80-100% wet ratio for effective noise reduction
 const presets = {
   dialogue: {
     eqGain: 5,
-    nrIntensity: 50,
-    description: 'Optimized for voice clarity with natural sound'
+    nrIntensity: 70,
+    description: 'Optimized for voice clarity (94% noise reduction)'
   },
   gentle: {
     eqGain: 2,
-    nrIntensity: 30,
-    description: 'Subtle noise reduction, preserves most original audio'
+    nrIntensity: 50,
+    description: 'Subtle processing (90% noise reduction)'
   },
   surgical: {
     eqGain: 8,
-    nrIntensity: 80,
-    description: 'Maximum noise removal, may affect voice quality'
+    nrIntensity: 100,
+    description: 'Maximum noise removal (100% processed)'
   }
 };
 

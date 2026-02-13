@@ -88,12 +88,15 @@ export class NoiseSuppressor {
     }
 
     setIntensity(amount) {
-        // amount: 0.0 (Original) to 1.0 (Fully Processed)
-        // We use equal power crossfade or simple linear. 
-        // For noise reduction, simple linear often feels more natural as "mixing in dry signal".
+        // amount: 0.0 to 1.0
+        // For noise reduction, we need high wet ratio (minimum 80%)
+        // 0.0 = 80% wet (gentle), 1.0 = 100% wet (full suppression)
         if (!this.dryGain || !this.wetGain) return;
 
-        const wet = Math.max(0, Math.min(1, amount));
+        const clampedAmount = Math.max(0, Math.min(1, amount));
+
+        // Map intensity to wet ratio: 0.0 -> 0.8, 1.0 -> 1.0
+        const wet = 0.8 + (clampedAmount * 0.2);
         const dry = 1 - wet;
 
         this.dryGain.gain.setTargetAtTime(dry, this.ctx.currentTime, 0.1);
