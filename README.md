@@ -5,11 +5,13 @@
 
 ## ✨ 주요 기능
 
-*   **실시간 노이즈 제거**: 마이크 입력에서 배경 소음(에어컨 소리, 팬 소음 등)을 즉시 제거합니다.
-*   **파일 처리**: 오디오 파일을 업로드하여 노이즈가 제거된 깨끗한 WAV 파일로 변환 및 다운로드할 수 있습니다.
-*   **오디오 시각화**: 입력과 출력 오디오의 스펙트럼을 실시간으로 시각화하여 노이즈 제거 효과를 눈으로 확인할 수 있습니다.
+*   **파일 기반 노이즈 제거**: 오디오 파일을 업로드하여 배경 소음(에어컨 소리, 팬 소음 등)이 제거된 깨끗한 WAV 파일로 변환 및 다운로드할 수 있습니다.
+*   **조절 가능한 노이즈 감소**: 0-100% 강도 조절로 원본 사운드와 자연스럽게 믹스할 수 있습니다.
+*   **Loudness 노멀라이제이션**: 방송(-24 LUFS), 팟캐스트(-16 LUFS), 스트리밍(-14 LUFS) 표준에 맞춰 자동으로 음량을 조정합니다.
+*   **고주파 강조 (Clarity)**: 5kHz High-shelf EQ로 음성의 명료도를 향상시킵니다.
+*   **True Peak 리미터**: 출력 신호가 0dBFS를 넘지 않도록 자동으로 제한합니다.
 *   **멀티 플랫폼 지원**:
-    *   **웹 (PWA)**: 설치 없이 브라우저에서 바로 사용 가능합니다.
+    *   **웹 (PWA)**: 설치 없이 브라우저에서 바로 사용 가능하며, 오프라인에서도 작동합니다.
     *   **데스크탑 (Windows)**: Electron을 통해 `.exe` 설치 파일로 빌드하여 네이티브 앱처럼 사용할 수 있습니다.
 
 ## 🚀 설치 및 실행 방법
@@ -39,8 +41,11 @@ npm run dist:exe
 
 *   **Core**: HTML5, CSS3, Vanilla JavaScript
 *   **Build Tool**: Vite
-*   **Audio Engine**: Web Audio API, [@sapphi-red/web-noise-suppressor](https://github.com/sapphi-red/web-noise-suppressor) (WASM)
+*   **Audio Engine**:
+    *   Web Audio API (AudioWorklet, OfflineAudioContext, DynamicsCompressor)
+    *   [@sapphi-red/web-noise-suppressor](https://github.com/sapphi-red/web-noise-suppressor) (Speex DSP WASM)
 *   **Desktop**: Electron, Electron Builder
+*   **PWA**: vite-plugin-pwa (Workbox Service Worker)
 *   **Hosting**: GitHub Pages / Netlify
 
 ## 📄 라이선스
