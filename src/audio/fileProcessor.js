@@ -50,10 +50,13 @@ export async function processFile(file, onProgress, options = {}) {
     const suppressor = new NoiseSuppressor();
     await suppressor.init(offlineCtx);
 
+    // Log processing parameters
+    console.log(`Processing with: Intensity=${nrIntensity}, EQ=${eqDb}dB, Channels=${audioBuffer.numberOfChannels}`);
+
     // Apply Denoise with Intensity and EQ
-    suppressor.connect(source, offlineCtx.destination);
     suppressor.setIntensity(nrIntensity);
     suppressor.setEQ(eqDb);
+    suppressor.connect(source, offlineCtx.destination);
 
     source.start();
 

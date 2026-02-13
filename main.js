@@ -61,8 +61,8 @@ app.innerHTML = `
 
           <div class="control-group">
             <label for="nrIntensity">Denoise Amount</label>
-            <input type="range" id="nrIntensity" min="0" max="100" value="85" step="1">
-            <span id="nrVal">85%</span>
+            <input type="range" id="nrIntensity" min="0" max="100" value="50" step="1">
+            <span id="nrVal">50%</span>
           </div>
         </div>
       </div>
@@ -157,17 +157,17 @@ const modePresetInput = document.getElementById('modePreset');
 const presets = {
   dialogue: {
     eqGain: 5,
-    nrIntensity: 85,
+    nrIntensity: 50,
     description: 'Optimized for voice clarity with natural sound'
   },
   gentle: {
     eqGain: 2,
-    nrIntensity: 50,
+    nrIntensity: 30,
     description: 'Subtle noise reduction, preserves most original audio'
   },
   surgical: {
     eqGain: 8,
-    nrIntensity: 100,
+    nrIntensity: 80,
     description: 'Maximum noise removal, may affect voice quality'
   }
 };

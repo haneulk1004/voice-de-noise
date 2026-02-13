@@ -1,13 +1,16 @@
 
 // True Peak Limiter Implementation
-// Using DynamicsCompressor for safety
+// Using DynamicsCompressor for safety and to prevent clipping
 export function createLimiter(ctx) {
     const limiter = ctx.createDynamicsCompressor();
-    limiter.threshold.value = -1.0; // Limit at -1dB
-    limiter.knee.value = 0.0; // Hard knee
-    limiter.ratio.value = 20.0; // High ratio (limiting)
-    limiter.attack.value = 0.001; // Fast attack
-    limiter.release.value = 0.1; // Fast release
+
+    // Limiter settings optimized for loudness normalization
+    limiter.threshold.value = -0.5; // Limit at -0.5dB (safer headroom)
+    limiter.knee.value = 0.0; // Hard knee for true limiting
+    limiter.ratio.value = 20.0; // High ratio for brick-wall limiting
+    limiter.attack.value = 0.003; // Fast attack (3ms)
+    limiter.release.value = 0.05; // Fast release (50ms)
+
     return limiter;
 }
 

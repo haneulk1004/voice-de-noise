@@ -1,18 +1,25 @@
 
 // Simplified Loudness Analysis (EBU R128 approximation)
 // Real EBU R128 requires specific K-weighting filters (Head/High-shelf + High-pass).
-// We will approximate using RMS and a weighting offset.
+// We will approximate using RMS across all channels and a weighting offset.
 
 export function measureLoudness(audioBuffer) {
-    const channelData = audioBuffer.getChannelData(0); // Mono analysis for now
-    let sum = 0;
+    const numChannels = audioBuffer.numberOfChannels;
+    let totalSum = 0;
+    let totalSamples = 0;
 
-    // Simple RMS
-    for (let i = 0; i < channelData.length; i++) {
-        sum += channelData[i] * channelData[i];
+    // Analyze all channels and average
+    for (let ch = 0; ch < numChannels; ch++) {
+        const channelData = audioBuffer.getChannelData(ch);
+
+        for (let i = 0; i < channelData.length; i++) {
+            totalSum += channelData[i] * channelData[i];
+        }
+
+        totalSamples += channelData.length;
     }
 
-    const rms = Math.sqrt(sum / channelData.length);
+    const rms = Math.sqrt(totalSum / totalSamples);
 
     // Avoid log(0)
     if (rms === 0) return -100;
@@ -20,21 +27,28 @@ export function measureLoudness(audioBuffer) {
     // Convert to dBFS
     const dbFS = 20 * Math.log10(rms);
 
-    // K-weighting approximation offset (typically around -0.6 to -1 dB difference for speech)
-    // For true compliance we need filters, but this gets us close for relative levels.
-    // Let's assume standard speech spectrum.
-    const approximateLUFS = dbFS - 0.691;
+    // K-weighting approximation offset (adjusted for better accuracy)
+    // For speech/voice content, typical offset is around -0.7 to -1.0 dB
+    const approximateLUFS = dbFS - 0.7;
 
     return approximateLUFS;
 }
 
 export function calculateGainNeeded(currentLUFS, targetLUFS) {
-    // Avoid extreme gains
+    // Calculate gain difference
     let gainDb = targetLUFS - currentLUFS;
 
-    // Safety clamp (+/- 20dB)
-    if (gainDb > 20) gainDb = 20;
-    if (gainDb < -20) gainDb = -20;
+    // Safety clamp to prevent extreme adjustments
+    // Positive gain: Be more conservative to prevent clipping (max +15dB)
+    // Negative gain: Allow more reduction (max -20dB)
+    if (gainDb > 15) {
+        console.warn(`⚠️ Clamping gain from ${gainDb.toFixed(2)}dB to +15dB to prevent clipping`);
+        gainDb = 15;
+    }
+    if (gainDb < -20) {
+        console.warn(`⚠️ Clamping gain from ${gainDb.toFixed(2)}dB to -20dB`);
+        gainDb = -20;
+    }
 
     return gainDb;
 }

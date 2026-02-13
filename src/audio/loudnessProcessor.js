@@ -16,12 +16,16 @@ export async function processLoudness(file, onProgress, targetLufs = -16) {
     const audioBuffer = await tempCtx.decodeAudioData(arrayBuffer);
     tempCtx.close();
 
+    const originalLength = audioBuffer.length;
+    const originalDuration = audioBuffer.duration;
+    console.log(`Original: ${originalLength} samples, ${originalDuration.toFixed(2)}s, ${audioBuffer.numberOfChannels}ch, ${audioBuffer.sampleRate}Hz`);
+
     if (onProgress) onProgress(20);
 
     // 2. Measure Current Loudness
     const currentLufs = measureLoudness(audioBuffer);
     const gainNeeded = calculateGainNeeded(currentLufs, targetLufs);
-    console.log(`Current: ${currentLufs.toFixed(2)} LUFS, Target: ${targetLufs}, Gain: ${gainNeeded.toFixed(2)}dB`);
+    console.log(`Loudness: Current=${currentLufs.toFixed(2)} LUFS, Target=${targetLufs} LUFS, Gain=${gainNeeded.toFixed(2)}dB`);
 
     if (onProgress) onProgress(40);
 
@@ -56,6 +60,12 @@ export async function processLoudness(file, onProgress, targetLufs = -16) {
 
     const finalBuffer = await offlineCtx.startRendering();
     clearInterval(progressInterval);
+
+    console.log(`Output: ${finalBuffer.length} samples, ${finalBuffer.duration.toFixed(2)}s (Original was ${originalLength} samples, ${originalDuration.toFixed(2)}s)`);
+
+    if (finalBuffer.length !== originalLength) {
+        console.warn(`⚠️ Length mismatch! Output is ${((finalBuffer.length / originalLength) * 100).toFixed(1)}% of original`);
+    }
 
     if (onProgress) onProgress(100);
 
