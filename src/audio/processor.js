@@ -28,7 +28,7 @@ export class NoiseSuppressor {
             // Create Node
             this.node = new SpeexWorkletNode(this.ctx, {
                 wasmBinary: this.wasmBinary,
-                maxChannels: 1
+                maxChannels: 2  // Support stereo
             });
 
             // EQ Node (High-shelf for clarity/air)

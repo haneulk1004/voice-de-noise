@@ -12,7 +12,7 @@ app.innerHTML = `
   </header>
 
   <div class="tabs">
-    <button class="tab-btn active" data-tab="tab-main">Home</button>
+    <button class="tab-btn active" data-tab="tab-main">De-noise</button>
     <button class="tab-btn" data-tab="tab-loudness">Loudness</button>
   </div>
 
