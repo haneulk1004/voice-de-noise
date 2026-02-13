@@ -1,8 +1,11 @@
 import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 
+// For GitHub Pages, base should be the repository name
+// For Electron, it works best with './' or the full path if possible. 
+// However, since we are prioritizing the web link now, let's fix it for GitHub Pages.
 export default defineConfig({
-  base: './',
+  base: '/voice-de-noise/', // MUST match repository name
   build: {
     target: 'es2015',
     outDir: 'dist',

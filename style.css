@@ -232,6 +232,7 @@ input[type="file"] {
 }
 
 .file-drop-zone {
+  display: block;
   border: 2px dashed #3f3f46;
   border-radius: 8px;
   padding: 2rem;
@@ -239,8 +240,10 @@ input[type="file"] {
   transition: border-color 0.2s;
 }
 
-.file-drop-zone:hover {
+.file-drop-zone:hover,
+.file-drop-zone.drag-over {
   border-color: var(--accent-color);
+  background: rgba(99, 102, 241, 0.1);
 }
 
 #fileStatus {
@@ -265,4 +268,52 @@ input[type="file"] {
   color: var(--accent-color);
   font-weight: 600;
   font-feature-settings: "tnum";
+}
+
+/* Tabs */
+.tabs {
+  display: flex;
+  margin-bottom: 20px;
+  background: #27272a;
+  padding: 5px;
+  border-radius: 12px;
+}
+
+.tab-btn {
+  flex: 1;
+  padding: 10px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-radius: 8px;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.tab-btn.active {
+  background: var(--card-bg);
+  color: var(--text-main);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+.tab-content {
+  display: none;
+  animation: fadeIn 0.3s ease;
+}
+
+.tab-content.active {
+  display: block;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }

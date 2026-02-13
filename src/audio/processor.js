@@ -40,6 +40,12 @@ export class NoiseSuppressor {
             // Internal connection: Suppressor -> EQ
             this.node.connect(this.eqNode);
 
+            // Create Wet/Dry Gain Nodes
+            this.dryGain = this.ctx.createGain();
+            this.wetGain = this.ctx.createGain();
+            this.dryGain.gain.value = 0; // Default to full wet (processed)
+            this.wetGain.gain.value = 1;
+
             console.log('NoiseSuppressor initialized');
             return this.node;
         } catch (err) {
@@ -54,35 +60,44 @@ export class NoiseSuppressor {
         this.source = source;
         this.destination = destination;
 
-        // Default path: Source -> Suppressor -> EQ -> Destination
+        // Routing:
+        // Source -> DryGain -> Destination
+        // Source -> SuppressorNode -> EQ -> WetGain -> Destination
+
+        source.connect(this.dryGain);
+        this.dryGain.connect(destination);
+
         source.connect(this.node);
-        // this.node is already connected to this.eqNode in init()
-        this.eqNode.connect(destination);
+        // this.node -> this.eqNode (already connected)
+        this.eqNode.connect(this.wetGain);
+        this.wetGain.connect(destination);
     }
 
     disconnect() {
-        if (this.node) this.node.disconnect();
-        if (this.eqNode) this.eqNode.disconnect();
-        // Do not disconnect source as we didn't create it
+        if (this.node) {
+            this.node.disconnect();
+            this.eqNode.disconnect();
+            this.dryGain.disconnect();
+            this.wetGain.disconnect();
+        }
     }
 
     setBypass(bypass) {
-        if (!this.source || !this.destination) return;
+        // Bypass is essentially Intensity = 0
+        this.setIntensity(bypass ? 0 : 1.0);
+    }
 
-        // Disconnect everything
-        this.source.disconnect();
-        this.node.disconnect();
-        this.eqNode.disconnect();
+    setIntensity(amount) {
+        // amount: 0.0 (Original) to 1.0 (Fully Processed)
+        // We use equal power crossfade or simple linear. 
+        // For noise reduction, simple linear often feels more natural as "mixing in dry signal".
+        if (!this.dryGain || !this.wetGain) return;
 
-        if (bypass) {
-            // Direct: Source -> Destination
-            this.source.connect(this.destination);
-        } else {
-            // Processed: Source -> Suppressor -> EQ -> Destination
-            this.source.connect(this.node);
-            this.node.connect(this.eqNode);
-            this.eqNode.connect(this.destination);
-        }
+        const wet = Math.max(0, Math.min(1, amount));
+        const dry = 1 - wet;
+
+        this.dryGain.gain.setTargetAtTime(dry, this.ctx.currentTime, 0.1);
+        this.wetGain.gain.setTargetAtTime(wet, this.ctx.currentTime, 0.1);
     }
 
     setEQ(gain) {

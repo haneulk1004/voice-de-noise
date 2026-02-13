@@ -31,16 +31,17 @@ export function exportWAV(audioBuffer) {
     for (i = 0; i < audioBuffer.numberOfChannels; i++)
         channels.push(audioBuffer.getChannelData(i));
 
-    while (pos < audioBuffer.length) {
+    let sampleIdx = 0;
+    while (sampleIdx < audioBuffer.length) {
         for (i = 0; i < numOfChan; i++) {
             // clamp
-            sample = Math.max(-1, Math.min(1, channels[i][pos]));
+            sample = Math.max(-1, Math.min(1, channels[i][sampleIdx]));
             // scale to 16-bit signed int
-            sample = (0.5 + sample < 0 ? sample * 32768 : sample * 32767) | 0;
+            sample = (sample < 0 ? sample * 32768 : sample * 32767) | 0;
             view.setInt16(44 + offset, sample, true);
             offset += 2;
         }
-        pos++;
+        sampleIdx++;
     }
 
     return new Blob([buffer], { type: 'audio/wav' });

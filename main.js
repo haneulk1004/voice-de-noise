@@ -1,6 +1,5 @@
 import './style.css';
 import { NoiseSuppressor } from './src/audio/processor.js';
-import { AudioVisualizer } from './src/ui/visualizer.js';
 import { processFile } from './src/audio/fileProcessor.js';
 import { exportWAV } from './src/utils/wav.js';
 
@@ -11,210 +10,286 @@ app.innerHTML = `
     <div class="subtitle">AI-Powered Noise Reduction</div>
   </header>
 
-  <div class="visualizer-container">
-    <canvas id="spectrum"></canvas>
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="tab-main">Home</button>
+    <button class="tab-btn" data-tab="tab-settings">Settings</button>
   </div>
 
-  <div class="card">
-    <div class="btn-group">
-      <button id="startBtn" type="button">Start Microphone</button>
-      <button id="stopBtn" type="button" disabled>Stop</button>
-    </div>
-    
-    <div class="status-bar">
-      <span>Status: <span id="statusText">Ready</span></span>
-      <span id="snrDisplay">NR: <span class="status-value">0.0 dB</span></span>
-    </div>
+  <!-- Tab: Main -->
+  <div id="tab-main" class="tab-content active">
+      <div class="card">
+        <div class="status-bar">
+          <span>Status: <span id="statusText">Ready</span></span>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>File Processing</h3>
+        <div class="file-upload-area">
+          <label for="fileInput" class="file-drop-zone">
+            <span id="dropZoneText">Click to Select Audio File</span>
+          </label>
+          <input type="file" id="fileInput" accept="audio/*">
+        </div>
+        <div id="fileStatus"></div>
+
+        <div class="preview-controls" style="margin-top: 1rem; display: none;" id="previewContainer">
+            <button id="previewBtn" style="flex:1;">Preview Result (Play)</button>
+        </div>
+
+        <button id="processBtn" style="width:100%; margin-top:1rem;" disabled>Process & Download WAV</button>
+      </div>
   </div>
 
-  <div class="card">
-    <h3>Controls</h3>
-    <div class="controls">
-      <div class="control-group">
-        <label for="mode">Mode</label>
-        <select id="mode">
-          <option value="dialogue">Dialogue</option>
-          <option value="gentle">Gentle</option>
-          <option value="surgical">Surgical</option>
-        </select>
-      </div>
+  <!-- Tab: Settings -->
+  <div id="tab-settings" class="tab-content">
+      <div class="card">
+        <h3>Audio Settings</h3>
+        <div class="controls">
+           <div class="control-group">
+            <label for="eqGain">Clarify / Treble (dB)</label>
+            <input type="range" id="eqGain" min="0" max="10" value="5" step="0.5">
+            <span id="eqVal">5.0</span>
+          </div>
 
-      <div class="control-group">
-        <label>Effect</label>
-        <button id="bypassBtn" class="active-processed">Processed</button>
-      </div>
+          <div class="control-group">
+            <label for="nrIntensity">Denoise Amount</label>
+            <input type="range" id="nrIntensity" min="0" max="100" value="100" step="1">
+            <span id="nrVal">100%</span>
+          </div>
 
-      <div class="control-group">
-        <label for="eqGain">Clarify (Treble)</label>
-        <input type="range" id="eqGain" min="-10" max="10" value="0" step="0.5" disabled>
+          <div class="control-group">
+            <label for="targetLufs">Loudness Target</label>
+            <select id="targetLufs">
+                <option value="-24">Broadcast (-24 LUFS)</option>
+                <option value="-16">Mobile / Podcast (-16 LUFS)</option>
+                <option value="-14">Online / Streaming (-14 LUFS)</option>
+            </select>
+          </div>
+        </div>
       </div>
-      
-      <!-- Hidden for MVP but kept in DOM to avoid errors if referenced -->
-      <div style="display:none">
-          <input type="range" id="threshold" value="-30" disabled>
-          <input type="range" id="reduction" value="20" disabled>
-      </div>
-    </div>
-  </div>
-
-  <div class="card">
-    <h3>File Processing</h3>
-    <div class="file-upload-area">
-      <label for="fileInput" class="file-drop-zone">
-        <span id="dropZoneText">Click to Select Audio File</span>
-      </label>
-      <input type="file" id="fileInput" accept="audio/*">
-    </div>
-    <div id="fileStatus"></div>
-    <button id="processBtn" style="width:100%; margin-top:1rem;" disabled>Process & Download WAV</button>
   </div>
 `;
 
-let audioCtx;
-let mediaStream;
-let sourceNode;
-let suppressor;
-let analyserIn;
-let analyserOut;
-let visualizer;
+// Tab Logic
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    // Remove active class from all
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
 
-const startBtn = document.getElementById('startBtn');
-const stopBtn = document.getElementById('stopBtn');
+    // Add active to clicked
+    btn.classList.add('active');
+    document.getElementById(btn.dataset.tab).classList.add('active');
+  });
+});
+
+// Elements
 const statusText = document.getElementById('statusText');
-const snrDisplay = document.getElementById('snrDisplay');
 const fileInput = document.getElementById('fileInput');
 const processBtn = document.getElementById('processBtn');
 const fileStatus = document.getElementById('fileStatus');
 const dropZoneText = document.getElementById('dropZoneText');
+const previewBtn = document.getElementById('previewBtn');
+const previewContainer = document.getElementById('previewContainer');
+const eqGainInput = document.getElementById('eqGain');
+const eqValDisplay = document.getElementById('eqVal');
 
-// --- Mic Logic ---
+// State
+let originalFile = null;
+let processedBuffer = null;
+let previewCtx = null;
+let previewSource = null;
+let isPlaying = false;
 
-startBtn.addEventListener('click', async () => {
-  try {
-    startBtn.disabled = true;
-    statusText.textContent = "Requesting Access...";
+// UI Helpers
+const setStatus = (msg, type = 'normal') => {
+  statusText.textContent = msg;
+  statusText.className = type; // you can add css classes for colors
+  if (type === 'error') statusText.style.color = 'var(--danger-color)';
+  else if (type === 'success') statusText.style.color = 'var(--success-color)';
+  else statusText.style.color = 'var(--text-muted)';
+};
 
-    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+const nrIntensityInput = document.getElementById('nrIntensity');
+const nrValDisplay = document.getElementById('nrVal');
+const targetLufsInput = document.getElementById('targetLufs');
 
-    statusText.textContent = "Loading Engine...";
-    suppressor = new NoiseSuppressor();
-    await suppressor.init(audioCtx);
+eqGainInput.addEventListener('input', (e) => {
+  eqValDisplay.textContent = e.target.value;
+});
 
-    analyserIn = audioCtx.createAnalyser();
-    analyserOut = audioCtx.createAnalyser();
+nrIntensityInput.addEventListener('input', (e) => {
+  nrValDisplay.textContent = e.target.value + '%';
+});
 
-    sourceNode = audioCtx.createMediaStreamSource(mediaStream);
-    sourceNode.connect(analyserIn);
-    analyserIn.connect(suppressor.node);
-    suppressor.node.connect(analyserOut);
-    analyserOut.connect(audioCtx.destination);
+// Drag and Drop
+const dropZone = document.querySelector('.file-drop-zone');
 
-    // Visualizer & Stats
-    const updateStats = ({ avgIn, avgOut }) => {
-      const diff = Math.max(0, avgIn - avgOut);
-      const reductionDB = (diff / 255 * 30).toFixed(1);
-      snrDisplay.innerHTML = `NR: <span class="status-value">${reductionDB} dB</span>`;
-    };
+['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+  dropZone.addEventListener(eventName, preventDefaults, false);
+});
 
-    if (visualizer) visualizer.stop();
-    visualizer = new AudioVisualizer('spectrum', analyserIn, analyserOut, updateStats);
-    visualizer.start();
+function preventDefaults(e) {
+  e.preventDefault();
+  e.stopPropagation();
+}
 
-    statusText.textContent = "Active";
-    statusText.style.color = "var(--success-color)";
-    stopBtn.disabled = false;
-    document.getElementById('eqGain').disabled = false;
+['dragenter', 'dragover'].forEach(eventName => {
+  dropZone.addEventListener(eventName, highlight, false);
+});
 
-  } catch (err) {
-    console.error(err);
-    statusText.textContent = "Error";
-    statusText.style.color = "var(--danger-color)";
-    startBtn.disabled = false;
+['dragleave', 'drop'].forEach(eventName => {
+  dropZone.addEventListener(eventName, unhighlight, false);
+});
+
+function highlight(e) {
+  dropZone.classList.add('drag-over');
+}
+
+function unhighlight(e) {
+  dropZone.classList.remove('drag-over');
+}
+
+dropZone.addEventListener('drop', handleDrop, false);
+
+function handleDrop(e) {
+  const dt = e.dataTransfer;
+  const files = dt.files;
+
+  handleFiles(files);
+}
+
+function handleFiles(files) {
+  if (files.length > 0) {
+    fileInput.files = files; // Sync with input
+    // Trigger change handling
+    const event = new Event('change');
+    fileInput.dispatchEvent(event);
   }
-});
+}
 
-stopBtn.addEventListener('click', () => {
-  if (visualizer) visualizer.stop();
-  if (audioCtx) { audioCtx.close(); audioCtx = null; }
-  if (mediaStream) { mediaStream.getTracks().forEach(t => t.stop()); mediaStream = null; }
-
-  startBtn.disabled = false;
-  stopBtn.disabled = true;
-  statusText.textContent = "Ready";
-  statusText.style.color = "var(--text-muted)";
-  snrDisplay.innerHTML = `NR: <span class="status-value">0.0 dB</span>`;
-  document.getElementById('eqGain').disabled = true;
-});
-
-// --- Controls ---
-
-const bypassBtn = document.getElementById('bypassBtn');
-const eqGain = document.getElementById('eqGain');
-let isBypassed = false;
-
-bypassBtn.addEventListener('click', () => {
-  if (!suppressor) return;
-  isBypassed = !isBypassed;
-  suppressor.setBypass(isBypassed);
-
-  if (isBypassed) {
-    bypassBtn.textContent = "Original";
-    bypassBtn.className = "active-bypass";
-  } else {
-    bypassBtn.textContent = "Processed";
-    bypassBtn.className = "active-processed";
-  }
-});
-
-eqGain.addEventListener('input', (e) => {
-  if (suppressor) suppressor.setEQ(parseFloat(e.target.value));
-});
-
-document.getElementById('mode').addEventListener('change', (e) => {
-  // Mode logic placeholder
-});
-
-// --- File Upload ---
-
+// File Input
 fileInput.addEventListener('change', (e) => {
   if (e.target.files.length > 0) {
-    const fileName = e.target.files[0].name;
-    dropZoneText.textContent = fileName;
+    originalFile = e.target.files[0];
+    dropZoneText.textContent = originalFile.name;
     processBtn.disabled = false;
     fileStatus.textContent = "Ready to process";
+
+    // Reset state
+    processedBuffer = null;
+    stopPreview();
+    previewContainer.style.display = 'none';
+    processBtn.textContent = "Process & Download WAV";
+
+    // Reset click handler to initial processing state
+    processBtn.onclick = handleProcessClick;
   }
 });
 
-processBtn.addEventListener('click', async () => {
-  const file = fileInput.files[0];
-  if (!file) return;
+// Separated Process Handler
+async function handleProcessClick() {
+  if (!originalFile) return;
 
   try {
     processBtn.disabled = true;
     processBtn.textContent = "Processing...";
+    setStatus("Processing...", "normal");
 
-    const renderedBuffer = await processFile(file);
+    // Parse Inputs
+    const eqDb = parseFloat(eqGainInput.value);
+    const nrIntensity = parseInt(nrIntensityInput.value, 10) / 100.0; // 0.0 to 1.0
+    const targetLufs = parseFloat(targetLufsInput.value);
 
-    processBtn.textContent = "Encoding...";
-    const wavBlob = exportWAV(renderedBuffer);
-    const url = URL.createObjectURL(wavBlob);
+    // Process
+    processedBuffer = await processFile(originalFile, (progress) => {
+      fileStatus.textContent = `Processing: ${progress}%`;
+    }, { eqDb, nrIntensity, targetLufs });
 
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `denoised_${file.name.replace(/\.[^/.]+$/, "")}.wav`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+    // Success
+    setStatus("Complete", "success");
+    fileStatus.textContent = "Processing complete! You can now preview or download.";
 
-    processBtn.textContent = "Process & Download WAV";
+    processBtn.textContent = "Download WAV";
     processBtn.disabled = false;
-    fileStatus.textContent = "Download started!";
-    setTimeout(() => fileStatus.textContent = "", 3000);
+
+    // Show Preview
+    previewContainer.style.display = 'flex';
+
+    // Switch button to Download Mode
+    processBtn.onclick = downloadProcessed;
 
   } catch (err) {
     console.error(err);
-    fileStatus.textContent = "Error processing file";
+    setStatus("Error", "error");
+    fileStatus.textContent = "Error processing file: " + err.message;
     processBtn.disabled = false;
   }
+}
+
+// Initial Listener (will be replaced by logic above, but we need to bind it initially)
+processBtn.addEventListener('click', handleProcessClick);
+
+/* 
+   We remove the old huge event listener block and replace with the named function 
+   to handle state changes better (Process -> Download).
+*/
+
+function downloadProcessed() {
+  if (!processedBuffer) return;
+  try {
+    const wavBlob = exportWAV(processedBuffer);
+    const url = URL.createObjectURL(wavBlob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `denoised_${originalFile.name.replace(/\.[^/.]+$/, "")}.wav`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    fileStatus.textContent = "Download started!";
+  } catch (err) {
+    console.error("Export Error", err);
+    fileStatus.textContent = "Error exporting WAV";
+  }
+}
+
+// Preview Logic
+previewBtn.addEventListener('click', () => {
+  if (isPlaying) {
+    stopPreview();
+  } else {
+    startPreview();
+  }
 });
+
+function startPreview() {
+  if (!processedBuffer) return;
+
+  previewCtx = new (window.AudioContext || window.webkitAudioContext)();
+  previewSource = previewCtx.createBufferSource();
+  previewSource.buffer = processedBuffer;
+  previewSource.connect(previewCtx.destination);
+
+  previewSource.onended = () => {
+    isPlaying = false;
+    previewBtn.textContent = "Preview Result (Play)";
+  };
+
+  previewSource.start();
+  isPlaying = true;
+  previewBtn.textContent = "Stop Preview";
+}
+
+function stopPreview() {
+  if (previewSource) {
+    try { previewSource.stop(); } catch (e) { }
+    previewSource = null;
+  }
+  if (previewCtx) {
+    try { previewCtx.close(); } catch (e) { }
+    previewCtx = null;
+  }
+  isPlaying = false;
+  previewBtn.textContent = "Preview Result (Play)";
+}
