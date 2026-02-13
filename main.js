@@ -1,6 +1,7 @@
 import './style.css';
 import { NoiseSuppressor } from './src/audio/processor.js';
 import { processFile } from './src/audio/fileProcessor.js';
+import { processLoudness } from './src/audio/loudnessProcessor.js';
 import { exportWAV } from './src/utils/wav.js';
 
 const app = document.querySelector('#app');
@@ -69,8 +70,29 @@ app.innerHTML = `
 
   <!-- Tab: Loudness -->
   <div id="tab-loudness" class="tab-content">
-      <div class="card">
+      <div class="card status-card">
+        <span>Status: <span id="loudnessStatusText">Ready</span></span>
+      </div>
+
+      <div class="card main-card">
         <h3>Loudness Normalization</h3>
+        <div class="file-upload-area">
+          <label for="loudnessFileInput" class="file-drop-zone" id="loudnessDropZone">
+            <span id="loudnessDropZoneText">Click to Select Audio File</span>
+          </label>
+          <input type="file" id="loudnessFileInput" accept="audio/*">
+        </div>
+        <div id="loudnessFileStatus"></div>
+
+        <div class="preview-controls" id="loudnessPreviewContainer">
+            <button id="loudnessPreviewBtn" class="btn-secondary">Preview Result</button>
+        </div>
+
+        <button id="loudnessProcessBtn" class="btn-primary" disabled>Normalize & Download WAV</button>
+      </div>
+
+      <div class="card">
+        <h3>Settings</h3>
         <div class="controls">
           <div class="control-group">
             <label for="targetLufs">Loudness Target</label>
@@ -356,4 +378,174 @@ function stopPreview() {
   }
   isPlaying = false;
   previewBtn.textContent = "Preview Result (Play)";
+}
+
+// ==========================================
+// LOUDNESS TAB - Independent Processing
+// ==========================================
+
+// Elements for Loudness Tab
+const loudnessStatusText = document.getElementById('loudnessStatusText');
+const loudnessFileInput = document.getElementById('loudnessFileInput');
+const loudnessProcessBtn = document.getElementById('loudnessProcessBtn');
+const loudnessFileStatus = document.getElementById('loudnessFileStatus');
+const loudnessDropZoneText = document.getElementById('loudnessDropZoneText');
+const loudnessPreviewBtn = document.getElementById('loudnessPreviewBtn');
+const loudnessPreviewContainer = document.getElementById('loudnessPreviewContainer');
+const loudnessDropZone = document.getElementById('loudnessDropZone');
+
+// State for Loudness Tab
+let loudnessOriginalFile = null;
+let loudnessProcessedBuffer = null;
+let loudnessPreviewCtx = null;
+let loudnessPreviewSource = null;
+let loudnessIsPlaying = false;
+
+// UI Helper for Loudness
+const setLoudnessStatus = (msg, type = 'normal') => {
+  loudnessStatusText.textContent = msg;
+  if (type === 'error') loudnessStatusText.style.color = 'var(--danger-color)';
+  else if (type === 'success') loudnessStatusText.style.color = 'var(--success-color)';
+  else loudnessStatusText.style.color = 'var(--text-muted)';
+};
+
+// Drag and Drop for Loudness Tab
+['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+  loudnessDropZone.addEventListener(eventName, preventDefaults, false);
+});
+
+['dragenter', 'dragover'].forEach(eventName => {
+  loudnessDropZone.addEventListener(eventName, () => {
+    loudnessDropZone.classList.add('drag-over');
+  }, false);
+});
+
+['dragleave', 'drop'].forEach(eventName => {
+  loudnessDropZone.addEventListener(eventName, () => {
+    loudnessDropZone.classList.remove('drag-over');
+  }, false);
+});
+
+loudnessDropZone.addEventListener('drop', (e) => {
+  const dt = e.dataTransfer;
+  const files = dt.files;
+  if (files.length > 0) {
+    loudnessFileInput.files = files;
+    const event = new Event('change');
+    loudnessFileInput.dispatchEvent(event);
+  }
+}, false);
+
+// File Input for Loudness
+loudnessFileInput.addEventListener('change', (e) => {
+  if (e.target.files.length > 0) {
+    loudnessOriginalFile = e.target.files[0];
+    loudnessDropZoneText.textContent = loudnessOriginalFile.name;
+    loudnessProcessBtn.disabled = false;
+    loudnessFileStatus.textContent = "Ready to normalize";
+
+    // Reset state
+    loudnessProcessedBuffer = null;
+    stopLoudnessPreview();
+    loudnessPreviewContainer.style.display = 'none';
+    loudnessProcessBtn.textContent = "Normalize & Download WAV";
+    loudnessProcessBtn.onclick = handleLoudnessProcessClick;
+  }
+});
+
+// Process Handler for Loudness
+async function handleLoudnessProcessClick() {
+  if (!loudnessOriginalFile) return;
+
+  try {
+    loudnessProcessBtn.disabled = true;
+    loudnessProcessBtn.textContent = "Processing...";
+    setLoudnessStatus("Normalizing...", "normal");
+
+    const targetLufs = parseFloat(targetLufsInput.value);
+
+    // Process (Loudness only, no noise reduction)
+    loudnessProcessedBuffer = await processLoudness(loudnessOriginalFile, (progress) => {
+      loudnessFileStatus.textContent = `Normalizing: ${progress}%`;
+    }, targetLufs);
+
+    // Success
+    setLoudnessStatus("Complete", "success");
+    loudnessFileStatus.textContent = "Normalization complete! You can now preview or download.";
+
+    loudnessProcessBtn.textContent = "Download WAV";
+    loudnessProcessBtn.disabled = false;
+
+    // Show Preview
+    loudnessPreviewContainer.style.display = 'flex';
+
+    // Switch to Download Mode
+    loudnessProcessBtn.onclick = downloadLoudnessProcessed;
+
+  } catch (err) {
+    console.error(err);
+    setLoudnessStatus("Error", "error");
+    loudnessFileStatus.textContent = "Error normalizing file: " + err.message;
+    loudnessProcessBtn.disabled = false;
+  }
+}
+
+loudnessProcessBtn.addEventListener('click', handleLoudnessProcessClick);
+
+function downloadLoudnessProcessed() {
+  if (!loudnessProcessedBuffer) return;
+  try {
+    const wavBlob = exportWAV(loudnessProcessedBuffer);
+    const url = URL.createObjectURL(wavBlob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `normalized_${loudnessOriginalFile.name.replace(/\.[^/.]+$/, "")}.wav`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    loudnessFileStatus.textContent = "Download started!";
+  } catch (err) {
+    console.error("Export Error", err);
+    loudnessFileStatus.textContent = "Error exporting WAV";
+  }
+}
+
+// Preview Logic for Loudness
+loudnessPreviewBtn.addEventListener('click', () => {
+  if (loudnessIsPlaying) {
+    stopLoudnessPreview();
+  } else {
+    startLoudnessPreview();
+  }
+});
+
+function startLoudnessPreview() {
+  if (!loudnessProcessedBuffer) return;
+
+  loudnessPreviewCtx = new (window.AudioContext || window.webkitAudioContext)();
+  loudnessPreviewSource = loudnessPreviewCtx.createBufferSource();
+  loudnessPreviewSource.buffer = loudnessProcessedBuffer;
+  loudnessPreviewSource.connect(loudnessPreviewCtx.destination);
+
+  loudnessPreviewSource.onended = () => {
+    loudnessIsPlaying = false;
+    loudnessPreviewBtn.textContent = "Preview Result";
+  };
+
+  loudnessPreviewSource.start();
+  loudnessIsPlaying = true;
+  loudnessPreviewBtn.textContent = "Stop Preview";
+}
+
+function stopLoudnessPreview() {
+  if (loudnessPreviewSource) {
+    try { loudnessPreviewSource.stop(); } catch (e) { }
+    loudnessPreviewSource = null;
+  }
+  if (loudnessPreviewCtx) {
+    try { loudnessPreviewCtx.close(); } catch (e) { }
+    loudnessPreviewCtx = null;
+  }
+  loudnessIsPlaying = false;
+  loudnessPreviewBtn.textContent = "Preview Result";
 }
