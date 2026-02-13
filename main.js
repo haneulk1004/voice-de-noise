@@ -17,13 +17,11 @@ app.innerHTML = `
 
   <!-- Tab: Main -->
   <div id="tab-main" class="tab-content active">
-      <div class="card">
-        <div class="status-bar">
-          <span>Status: <span id="statusText">Ready</span></span>
-        </div>
+      <div class="card status-card">
+        <span>Status: <span id="statusText">Ready</span></span>
       </div>
 
-      <div class="card">
+      <div class="card main-card">
         <h3>File Processing</h3>
         <div class="file-upload-area">
           <label for="fileInput" class="file-drop-zone">
@@ -33,11 +31,11 @@ app.innerHTML = `
         </div>
         <div id="fileStatus"></div>
 
-        <div class="preview-controls" style="margin-top: 1rem; display: none;" id="previewContainer">
-            <button id="previewBtn" style="flex:1;">Preview Result (Play)</button>
+        <div class="preview-controls" id="previewContainer">
+            <button id="previewBtn" class="btn-secondary">Preview Result</button>
         </div>
 
-        <button id="processBtn" style="width:100%; margin-top:1rem;" disabled>Process & Download WAV</button>
+        <button id="processBtn" class="btn-primary" disabled>Process & Download WAV</button>
       </div>
   </div>
 
@@ -54,8 +52,8 @@ app.innerHTML = `
                 <option value="gentle">Gentle</option>
                 <option value="surgical">Surgical</option>
             </select>
-            <small style="display: block; margin-top: 0.25rem; color: var(--text-muted);">Dialogue: Optimized for voice | Gentle: Subtle | Surgical: Maximum removal</small>
           </div>
+          <small class="hint">Dialogue: Optimized for voice | Gentle: Subtle | Surgical: Maximum removal</small>
 
           <div class="control-group">
             <label for="eqGain">Clarify / Treble (dB)</label>
