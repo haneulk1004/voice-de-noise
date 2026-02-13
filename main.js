@@ -62,6 +62,32 @@ app.innerHTML = `
           </div>
         </div>
       </div>
+
+      <div class="card">
+        <h3>Advanced Settings</h3>
+        <div class="controls">
+          <div class="control-group">
+            <label for="noiseGateThreshold">Noise Gate</label>
+            <input type="range" id="noiseGateThreshold" min="-60" max="-30" value="-50" step="1">
+            <span id="gateVal">-50 dB</span>
+          </div>
+          <small class="hint">Lower values = more aggressive background noise removal</small>
+
+          <div class="control-group">
+            <label for="deesserAmount">De-esser (Sibilance)</label>
+            <input type="range" id="deesserAmount" min="0" max="100" value="50" step="1">
+            <span id="deesserVal">50%</span>
+          </div>
+          <small class="hint">Reduces harsh 'S' and 'SH' sounds</small>
+
+          <div class="control-group">
+            <label for="compressionRatio">Voice Leveling</label>
+            <input type="range" id="compressionRatio" min="1" max="8" value="4" step="0.5">
+            <span id="compVal">4:1</span>
+          </div>
+          <small class="hint">Balances loud and quiet parts (higher = more consistent)</small>
+        </div>
+      </div>
   </div>
 
   <!-- Tab: Loudness -->
@@ -140,6 +166,14 @@ const nrValDisplay = document.getElementById('nrVal');
 const targetLufsInput = document.getElementById('targetLufs');
 const modePresetInput = document.getElementById('modePreset');
 
+// Advanced controls
+const noiseGateInput = document.getElementById('noiseGateThreshold');
+const gateValDisplay = document.getElementById('gateVal');
+const deesserInput = document.getElementById('deesserAmount');
+const deesserValDisplay = document.getElementById('deesserVal');
+const compressionInput = document.getElementById('compressionRatio');
+const compValDisplay = document.getElementById('compVal');
+
 // Mode Presets
 // Note: Intensity now maps to 80-100% wet ratio for effective noise reduction
 const presets = {
@@ -192,6 +226,19 @@ nrIntensityInput.addEventListener('input', (e) => {
   if (modePresetInput.value !== 'custom') {
     modePresetInput.value = 'custom';
   }
+});
+
+// Advanced controls event listeners
+noiseGateInput.addEventListener('input', (e) => {
+  gateValDisplay.textContent = e.target.value + ' dB';
+});
+
+deesserInput.addEventListener('input', (e) => {
+  deesserValDisplay.textContent = e.target.value + '%';
+});
+
+compressionInput.addEventListener('input', (e) => {
+  compValDisplay.textContent = e.target.value + ':1';
 });
 
 // Initialize with dialogue preset
@@ -274,10 +321,15 @@ async function handleProcessClick() {
     const nrIntensity = parseInt(nrIntensityInput.value, 10) / 100.0; // 0.0 to 1.0
     const targetLufs = parseFloat(targetLufsInput.value);
 
+    // Advanced settings
+    const noiseGateThreshold = parseFloat(noiseGateInput.value);
+    const deesserAmount = parseInt(deesserInput.value, 10) / 100.0;
+    const compressionRatio = parseFloat(compressionInput.value);
+
     // Process
     processedBuffer = await processFile(originalFile, (progress) => {
       fileStatus.textContent = `Processing: ${progress}%`;
-    }, { eqDb, nrIntensity, targetLufs });
+    }, { eqDb, nrIntensity, targetLufs, noiseGateThreshold, deesserAmount, compressionRatio });
 
     // Success
     setStatus("Complete", "success");

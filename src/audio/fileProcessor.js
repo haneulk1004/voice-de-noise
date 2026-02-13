@@ -1,5 +1,6 @@
 
 import { NoiseSuppressor } from '../audio/processor.js';
+import { VoiceEnhancer } from './voiceEnhancer.js';
 import speexWorkletPath from '@sapphi-red/web-noise-suppressor/speexWorklet.js?url';
 import { measureLoudness, calculateGainNeeded } from './analysis.js';
 import { applyGainAndLimit } from './limiter.js';
@@ -9,6 +10,9 @@ export async function processFile(file, onProgress, options = {}) {
     let eqDb = 5;
     let nrIntensity = 1.0;
     let targetLufs = -24;
+    let noiseGateThreshold = -50;
+    let deesserAmount = 0.5;
+    let compressionRatio = 4;
 
     if (typeof options === 'number') {
         eqDb = options;
@@ -16,6 +20,9 @@ export async function processFile(file, onProgress, options = {}) {
         if (options.eqDb !== undefined) eqDb = options.eqDb;
         if (options.nrIntensity !== undefined) nrIntensity = options.nrIntensity;
         if (options.targetLufs !== undefined) targetLufs = options.targetLufs;
+        if (options.noiseGateThreshold !== undefined) noiseGateThreshold = options.noiseGateThreshold;
+        if (options.deesserAmount !== undefined) deesserAmount = options.deesserAmount;
+        if (options.compressionRatio !== undefined) compressionRatio = options.compressionRatio;
     }
 
     // 1. Decode File
@@ -50,13 +57,29 @@ export async function processFile(file, onProgress, options = {}) {
     const suppressor = new NoiseSuppressor();
     await suppressor.init(offlineCtx);
 
+    // Voice Enhancement (High-pass, Gate, De-esser, Compression)
+    const enhancer = new VoiceEnhancer();
+    enhancer.init(offlineCtx);
+
+    // Apply advanced settings
+    enhancer.setNoiseGateThreshold(noiseGateThreshold);
+    enhancer.setDeesserAmount(deesserAmount);
+    enhancer.setCompressionRatio(compressionRatio);
+
     // Log processing parameters
     console.log(`Processing with: Intensity=${nrIntensity}, EQ=${eqDb}dB, Channels=${audioBuffer.numberOfChannels}`);
+    console.log(`Voice Enhancement: Gate=${noiseGateThreshold}dB, De-esser=${(deesserAmount * 100).toFixed(0)}%, Compression=${compressionRatio}:1`);
 
     // Apply Denoise with Intensity and EQ
     suppressor.setIntensity(nrIntensity);
     suppressor.setEQ(eqDb);
-    suppressor.connect(source, offlineCtx.destination);
+
+    // Create intermediate node for routing
+    const intermediateNode = offlineCtx.createGain();
+
+    // Signal chain: Source -> Suppressor -> Enhancer -> Destination
+    suppressor.connect(source, intermediateNode);
+    enhancer.connect(intermediateNode, offlineCtx.destination);
 
     source.start();
 
